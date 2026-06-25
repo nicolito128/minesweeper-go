@@ -47,7 +47,7 @@ func main() {
 }
 
 func printGame(g *minesweeper.Game) {
-	fmt.Printf("[ Mines: %v ]\n", g.CountedMines())
+	fmt.Printf("[ Mines: %v ]\n", g.Mines()-g.CountedMines())
 	fmt.Printf("[ State: %s ]\n", g.State())
 	fmt.Println(g)
 }

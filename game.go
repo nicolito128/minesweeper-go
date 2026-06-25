@@ -97,7 +97,7 @@ func (g *Game) Mines() int {
 }
 
 func (g *Game) CountedMines() int {
-	return g.totalMines - g.countedMines
+	return g.countedMines
 }
 
 func (g *Game) String() string {
@@ -184,6 +184,8 @@ func (g *Game) ToggleFlag(x, y int) error {
 	}
 
 	g.board[x][y].flagged = !g.board[x][y].flagged
+	g.countedMines += 1
+
 	return nil
 }
 
