@@ -40,7 +40,7 @@ func main() {
 	printGame(g)
 	for _, action := range actions {
 		if err := g.Handle(action); err != nil {
-			panic(err)
+			fmt.Println("Error:", err)
 		}
 		printGame(g)
 	}

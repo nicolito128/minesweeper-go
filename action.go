@@ -33,6 +33,7 @@ func NewAction(kind ActionKind, x, y int) Action {
 	return Action{Kind: kind, X: x, Y: y}
 }
 
+// <L><X>;<Y>.
 func (a Action) String() string {
 	return fmt.Sprintf("%c%d;%d.", a.Kind, a.X, a.Y)
 }

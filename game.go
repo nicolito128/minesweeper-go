@@ -42,6 +42,8 @@ type Game struct {
 	// revealed mines
 	countedMines int
 
+	revealedCells int
+
 	// board size
 	size  int
 	board [][]Cell
@@ -149,7 +151,7 @@ func (g *Game) Handle(act *Action) error {
 	switch act.Kind {
 	case ActionRevealCell:
 		if g.state == StateUnknown {
-			g.Start(x, y)
+			return g.Start(x, y)
 		}
 		return g.RevealCell(x, y)
 	case ActionToggleFlag:
@@ -172,6 +174,7 @@ func (g *Game) Start(x, y int) error {
 
 	g.generateInitialBoard(x, y, g.totalMines)
 	g.state = StatePlaying
+	g.RevealCell(x, y)
 	return nil
 }
 
@@ -179,7 +182,7 @@ func (g *Game) ToggleFlag(x, y int) error {
 	if !g.inBounds(x, y) {
 		return ErrOutOfBounds
 	}
-	if g.board[y][x].revealed {
+	if g.board[x][y].revealed {
 		return ErrInvalidAction
 	}
 
@@ -250,11 +253,11 @@ func (g *Game) generateInitialBoard(initX, initY int, totaltotalMines int) {
 			continue
 		}
 
-		if g.board[y][x].kind == CellMine {
+		if g.board[x][y].kind == CellMine {
 			continue
 		}
 
-		g.board[y][x].kind = CellMine
+		g.board[x][y].kind = CellMine
 		totalMinesPlaced++
 	}
 
