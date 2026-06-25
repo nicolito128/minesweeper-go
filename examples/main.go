@@ -9,7 +9,8 @@ import (
 )
 
 var (
-	sizeFlag    = flag.Int("size", 9, "Size of the board")
+	widthFlag   = flag.Int("w", 9, "Width of the board")
+	heightFlag  = flag.Int("h", 9, "Height of the board")
 	minesFlag   = flag.Int("mines", 10, "Total amount of mines")
 	seedFlag    = flag.Uint64("seed", 0, "Seed for randomness")
 	actionsFlag = flag.String("act", "", "Chain of actions")
@@ -18,14 +19,15 @@ var (
 func main() {
 	flag.Parse()
 
-	size := *sizeFlag
+	width := *widthFlag
+	height := *heightFlag
 	mines := *minesFlag
 	seed := *seedFlag
 	if seed == 0 {
 		seed = rand.Uint64()
 	}
 
-	g, err := minesweeper.NewGameSeeded(seed, size, mines)
+	g, err := minesweeper.NewGameSeeded(seed, width, height, mines)
 	if err != nil {
 		panic(err)
 	}
@@ -47,7 +49,7 @@ func main() {
 }
 
 func printGame(g *minesweeper.Game) {
-	fmt.Printf("[ Mines: %v ]\n", g.Mines()-g.CountedMines())
-	fmt.Printf("[ State: %s ]\n", g.State())
+	fmt.Printf("[ Mines: %v ]\n", g.Mines()-g.FlagsPlaced())
+	fmt.Printf("[ Status: %s ]\n", g.Status())
 	fmt.Println(g)
 }

@@ -33,12 +33,12 @@ func NewAction(kind ActionKind, x, y int) Action {
 	return Action{Kind: kind, X: x, Y: y}
 }
 
-// <L><X>;<Y>.
 func (a Action) String() string {
 	return fmt.Sprintf("%c%d;%d.", a.Kind, a.X, a.Y)
 }
 
 func ParseAction(s string) (*Action, error) {
+	// <Letter><PosX>;<PosY>.
 	format := "%c%d;%d"
 	if len(format) < 4 {
 		return nil, errors.New("failed to parse action with less than 4 characters")

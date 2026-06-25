@@ -22,3 +22,13 @@ func NewCell(mine bool) Cell {
 	}
 	return c
 }
+
+type CellSymbol = byte
+
+const (
+	SymbolUnrevealed CellSymbol = 'o'
+	SymbolEmpty      CellSymbol = '_'
+	SymbolFlag       CellSymbol = '!'
+	SymbolMine       CellSymbol = 'x'
+	SymbolBreakln    CellSymbol = '\n'
+)
