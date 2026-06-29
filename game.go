@@ -1,7 +1,6 @@
 package minesweeper
 
 import (
-	"iter"
 	"math/rand"
 
 	"github.com/nicolito128/minesweeper-go/prng"
@@ -38,9 +37,7 @@ type Game struct {
 
 	revealedCells int
 
-	// board size
-	width, height int // TODO
-	board         [][]Cell
+	board *Board
 
 	// deterministic randomness by seed
 	randSrc *prng.SeededSource64
@@ -68,30 +65,16 @@ func NewGameSeeded(seed uint64, width, height, minesTotal int) (*Game, error) {
 		return nil, ErrInvalidBoard
 	}
 	g := new(Game)
-	g.width = width
-	g.height = height
 	g.minesTotal = minesTotal
 	g.randSrc = prng.NewSeededSource64(seed)
 	g.random = rand.New(g.randSrc)
-
-	g.board = make([][]Cell, width)
-	for i := range width {
-		row := make([]Cell, height)
-		for j := range height {
-			row[j] = NewCell(false)
-		}
-		g.board[i] = row
-	}
+	g.board = NewBoard(width, height)
 
 	return g, nil
 }
 
-func (g *Game) Width() int {
-	return g.width
-}
-
-func (g *Game) Height() int {
-	return g.height
+func (g *Game) Board() *Board {
+	return g.board
 }
 
 func (g *Game) Status() GameStatus {
@@ -124,7 +107,7 @@ func (g *Game) Handle(act *Action) error {
 		return nil
 	}
 
-	if !g.inBounds(x, y) {
+	if !g.board.InBounds(x, y) {
 		return ErrOutOfBounds
 	}
 
@@ -145,7 +128,7 @@ func (g *Game) Handle(act *Action) error {
 }
 
 func (g *Game) Start(x, y int) error {
-	if !g.inBounds(x, y) {
+	if !g.board.InBounds(x, y) {
 		return ErrOutOfBounds
 	}
 	if g.status != StatusUnknown {
@@ -159,15 +142,15 @@ func (g *Game) Start(x, y int) error {
 }
 
 func (g *Game) ToggleFlag(x, y int) error {
-	if !g.inBounds(x, y) {
+	if !g.board.InBounds(x, y) {
 		return ErrOutOfBounds
 	}
-	if g.board[x][y].revealed {
+	if g.board.Cell(x, y).IsRevealed {
 		return ErrInvalidAction
 	}
 
-	g.board[x][y].flagged = !g.board[x][y].flagged
-	if g.board[x][y].flagged {
+	g.board.Cell(x, y).IsFlagged = !g.board.Cell(x, y).IsFlagged
+	if g.board.Cell(x, y).IsFlagged {
 		g.flagsPlaced++
 	} else {
 		g.flagsPlaced--
@@ -177,28 +160,28 @@ func (g *Game) ToggleFlag(x, y int) error {
 }
 
 func (g *Game) RevealCell(startX, startY int) error {
-	if !g.inBounds(startX, startY) {
+	if !g.board.InBounds(startX, startY) {
 		return ErrOutOfBounds
 	}
-	if g.board[startX][startY].revealed || g.board[startX][startX].flagged {
+	if g.board.Cell(startX, startY).IsRevealed || g.board.Cell(startX, startY).IsFlagged {
 		return ErrInvalidAction
 	}
 
-	if g.board[startX][startY].kind == CellMine {
-		g.board[startX][startY].revealed = true
+	if g.board.Cell(startX, startY).IsMine {
+		g.board.Cell(startX, startY).Reveal()
 		g.onRevealedMine()
 		return nil
 	}
 
-	if g.board[startX][startY].kind == CellCount {
-		g.board[startX][startY].revealed = true
+	if g.board.Cell(startX, startY).AdjacentMines > 0 {
+		g.board.Cell(startX, startY).Reveal()
 		g.revealedCells++
 		return nil
 	}
 
 	queue := make([][2]int, 0)
 
-	g.board[startX][startY].revealed = true
+	g.board.Cell(startX, startY).IsRevealed = true
 	g.revealedCells++
 	queue = append(queue, [2]int{startX, startY})
 
@@ -206,17 +189,13 @@ func (g *Game) RevealCell(startX, startY int) error {
 		curr := queue[0]
 		queue = queue[1:]
 
-		for nx, ny := range g.adjacentCells(curr[0], curr[1]) {
-			if nx == 0 && ny == 0 {
-				continue
-			}
-
-			if !g.board[nx][ny].revealed && !g.board[nx][ny].flagged {
-				g.board[nx][ny].revealed = true
+		for ac := range g.board.AdjacentCells(curr[0], curr[1]) {
+			if !ac.IsRevealed && !ac.IsFlagged {
+				ac.IsRevealed = true
 				g.revealedCells++
 
-				if g.board[nx][ny].kind == CellEmpty {
-					queue = append(queue, [2]int{nx, ny})
+				if ac.IsEmpty() {
+					queue = append(queue, [2]int{ac.X, ac.Y})
 				}
 			}
 		}
@@ -231,18 +210,18 @@ func (g *Game) generateInitialBoard(initX, initY int, totalminesTotal int) {
 	minesTotalPlaced := 0
 
 	for minesTotalPlaced < totalminesTotal {
-		randx := g.random.Intn(g.width)
-		randy := g.random.Intn(g.height)
+		randx := g.random.Intn(g.board.width)
+		randy := g.random.Intn(g.board.height)
 
 		if abs(randx-initX) <= 1 && abs(randy-initY) <= 1 {
 			continue
 		}
 
-		if g.board[randx][randy].kind == CellMine {
+		if g.board.Cell(randx, randy).IsMine {
 			continue
 		}
 
-		g.board[randx][randy].kind = CellMine
+		g.board.Cell(randx, randy).IsMine = true
 		minesTotalPlaced++
 	}
 
@@ -250,21 +229,20 @@ func (g *Game) generateInitialBoard(initX, initY int, totalminesTotal int) {
 }
 
 func (g *Game) calculateNeighborCounters() {
-	for x, y := range g.cells() {
-		if g.board[x][y].kind == CellMine {
+	for c := range g.board.Cells() {
+		if c.IsMine {
 			continue
 		}
 
-		minesCount := 0
-		for nx, ny := range g.adjacentCells(x, y) {
-			if g.board[nx][ny].kind == CellMine {
+		minesCount := uint8(0)
+		for ac := range g.board.AdjacentCells(c.X, c.Y) {
+			if ac.IsMine {
 				minesCount++
 			}
 		}
 
 		if minesCount > 0 {
-			g.board[x][y].kind = CellCount
-			g.board[x][y].value = minesCount
+			c.AdjacentMines = minesCount
 		}
 	}
 }
@@ -272,56 +250,24 @@ func (g *Game) calculateNeighborCounters() {
 func (g *Game) onRevealedMine() {
 	g.status = StatusLost
 
-	for x, y := range g.cells() {
-		g.board[x][y].revealed = true
-		g.revealedCells++
+	for c := range g.board.Cells() {
+		if !c.IsRevealed {
+			c.IsRevealed = true
+			g.revealedCells++
+		}
 	}
 }
 
 func (g *Game) onWinCase() {
-	if g.revealedCells == (g.width*g.height - g.minesTotal) {
+	if g.revealedCells == (g.board.width*g.board.height - g.minesTotal) {
 		g.status = StatusWon
-		for x, y := range g.cells() {
-			if g.board[x][y].kind == CellMine {
-				g.board[x][y].flagged = true
-				g.board[x][y].revealed = false
+		for c := range g.board.Cells() {
+			if c.IsMine {
+				c.IsFlagged = true
+				c.IsRevealed = false
 			} else {
-				g.board[x][y].revealed = true
-				g.board[x][y].flagged = false
-			}
-		}
-	}
-}
-
-func (g *Game) inBounds(x, y int) bool {
-	return x >= 0 && x < g.width && y >= 0 && y < g.height
-}
-
-func (g *Game) cells() iter.Seq2[int, int] {
-	return func(yield func(int, int) bool) {
-		for x := range g.width {
-			for y := range g.height {
-				if !yield(x, y) {
-					return
-				}
-			}
-		}
-	}
-}
-
-func (g *Game) adjacentCells(x, y int) iter.Seq2[int, int] {
-	return func(yield func(int, int) bool) {
-		if g.inBounds(x, y) {
-			for dx := -1; dx <= 1; dx++ {
-				for dy := -1; dy <= 1; dy++ {
-					nx, ny := x+dx, y+dy
-
-					if g.inBounds(nx, ny) {
-						if !yield(nx, ny) {
-							return
-						}
-					}
-				}
+				c.IsRevealed = true
+				c.IsFlagged = false
 			}
 		}
 	}

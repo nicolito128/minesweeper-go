@@ -1,34 +1,28 @@
 package minesweeper
 
-type CellKind uint8
-
-const (
-	CellEmpty CellKind = iota
-	CellCount
-	CellMine
-)
-
 type Cell struct {
-	kind     CellKind
-	value    int
-	revealed bool
-	flagged  bool
+	X, Y          int
+	AdjacentMines uint8
+	IsMine        bool
+	IsRevealed    bool
+	IsFlagged     bool
 }
 
-func NewCell(mine bool) Cell {
-	c := Cell{}
-	if mine {
-		c.kind = CellMine
-	}
+func NewCell(x, y int) *Cell {
+	c := new(Cell)
+	c.X = x
+	c.Y = y
 	return c
 }
 
-type CellSymbol = byte
+func (c *Cell) Reveal() {
+	c.IsRevealed = true
+}
 
-const (
-	SymbolUnrevealed CellSymbol = 'o'
-	SymbolEmpty      CellSymbol = '_'
-	SymbolFlag       CellSymbol = '!'
-	SymbolMine       CellSymbol = 'x'
-	SymbolBreakln    CellSymbol = '\n'
-)
+func (c *Cell) ToggleFlag() {
+	c.IsFlagged = !c.IsFlagged
+}
+
+func (c *Cell) IsEmpty() bool {
+	return !c.IsMine && c.AdjacentMines == 0
+}

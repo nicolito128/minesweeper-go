@@ -75,39 +75,39 @@ func (g *GameView) UnmarshalJSON(data []byte) error {
 }
 
 func (g *Game) View() GameView {
-	viewBoard := make([][]CellView, g.width)
+	width := g.board.Width()
+	height := g.board.Height()
+
+	viewBoard := make([][]CellView, width)
 	for x := range viewBoard {
-		viewBoard[x] = make([]CellView, g.height)
+		viewBoard[x] = make([]CellView, height)
 	}
 
-	for x, y := range g.cells() {
-		internalCell := g.board[x][y]
-
+	for cell := range g.board.Cells() {
 		viewCell := CellView{
-			X:        x,
-			Y:        y,
-			Revealed: internalCell.revealed,
-			Flagged:  internalCell.flagged,
+			X:        cell.X,
+			Y:        cell.Y,
+			Revealed: cell.IsRevealed,
+			Flagged:  cell.IsFlagged,
 		}
 
-		if internalCell.revealed {
-			if internalCell.kind == CellMine {
-				viewCell.Value = -1
-			} else {
-				viewCell.Value = internalCell.value // Número 0-8
-			}
-		} else if g.status == StatusLost && internalCell.kind == CellMine {
+		switch {
+		case cell.IsRevealed && cell.IsMine:
 			viewCell.Value = -1
-		} else {
+		case cell.IsRevealed:
+			viewCell.Value = int(cell.AdjacentMines)
+		case g.status == StatusLost && cell.IsMine:
+			viewCell.Value = -1
+		default:
 			viewCell.Value = 0
 		}
 
-		viewBoard[x][y] = viewCell
+		viewBoard[cell.X][cell.Y] = viewCell
 	}
 
 	return GameView{
-		Width:     g.width,
-		Height:    g.height,
+		Width:     width,
+		Height:    height,
 		MinesLeft: g.minesTotal - g.flagsPlaced,
 		Status:    g.status.String(),
 		Board:     viewBoard,
@@ -126,29 +126,30 @@ func (g *Game) String() string {
 func (g *Game) Bytes() []byte {
 	var out bytes.Buffer
 
-	out.Grow(g.width*g.height + g.width)
+	width := g.board.Width()
+	height := g.board.Height()
 
-	for x, y := range g.cells() {
-		c := g.board[x][y]
+	out.Grow(width*height + width)
 
-		if !c.revealed {
-			if c.flagged {
+	for cell := range g.board.Cells() {
+		if !cell.IsRevealed {
+			if cell.IsFlagged {
 				out.WriteByte(SymbolFlag)
 			} else {
 				out.WriteByte(SymbolUnrevealed)
 			}
 		} else {
-			switch c.kind {
-			case CellEmpty:
-				out.WriteByte(SymbolEmpty)
-			case CellMine:
+			switch {
+			case cell.IsMine:
 				out.WriteByte(SymbolMine)
-			case CellCount:
-				out.Write(strconv.AppendInt(out.AvailableBuffer(), int64(c.value), 10))
+			case cell.AdjacentMines > 0:
+				out.Write(strconv.AppendInt(out.AvailableBuffer(), int64(cell.AdjacentMines), 10))
+			default:
+				out.WriteByte(SymbolEmpty)
 			}
 		}
 
-		if y == g.height-1 {
+		if cell.Y == height-1 {
 			out.WriteByte(SymbolBreakln)
 		}
 	}
